@@ -17,7 +17,7 @@ matplotlib.rcParams['pdf.fonttype'] = 42
 import matplotlib.pyplot as plt
 from IPython import embed as shell
 
-this_raw_folder = '/home/raw_data/UvA/Donner_lab/2014/visual_detection/data2/bids_converted/'
+this_raw_folder = '/home/raw_data/UvA/Donner_lab/2017_eLife/1_fMRI_yesno_visual/'
 this_project_folder = '/home/shared/UvA/Niels_UvA/Visual_UvA2/'
 analysisFolder = os.path.join(this_project_folder, 'analysis')
 sys.path.append( analysisFolder )
@@ -34,15 +34,15 @@ from defs_fmri_individuals import defs_fmri_individuals
 # Comments:       -
 # -----------------
 
-subjects = ['sub-01', 'sub-02', 'sub-03', 'sub-04', 'sub-05', 'sub-06', 'sub-07', 'sub-08', 'sub-09', 'sub-10', 'sub-11', 'sub-12', 'sub-13', 'sub-14']
-
+# subjects = ['sub-01', 'sub-02', 'sub-03', 'sub-04', 'sub-05', 'sub-06', 'sub-07', 'sub-08', 'sub-09', 'sub-10', 'sub-11', 'sub-12', 'sub-13', 'sub-14']
+subjects = ['sub-01']
 for which_subject in subjects:
-
+    
     if which_subject == 'sub-04':
         sessions = [0,1,2]
     else:
         sessions = [1,2]
-
+        
     edfs = []
     for s in sessions:
 
@@ -78,19 +78,19 @@ for which_subject in subjects:
             # Pupil:                     -
             # ----------------------------
 
-            # if s == 2:
-            #     pupilPreprocessSession = PupilYesNoDetection.pupilPreprocessSession(subject=Subject(which_subject, '?', None, None, None), experiment_name='pupil_yes_no', experiment_nr=2, version=3, sample_rate_new=50, project_directory=this_project_folder)
-            #     pupilPreprocessSession.import_raw_data(edf_files=edfs, aliases=aliases)
-            #     pupilPreprocessSession.delete_hdf5()
-            #     pupilPreprocessSession.import_all_data(aliases)
-            #     for alias in aliases:
-            #         pupilPreprocessSession.process_runs(alias, artifact_rejection='not_strict', create_pupil_BOLD_regressor=False)
-            #         pass
-            #     pupilPreprocessSession.process_across_runs(aliases, create_pupil_BOLD_regressor=False)
-            #
-            #     # within subjects stats:
-            #     pupilAnalysisSession = PupilYesNoDetection.pupilAnalyses(subject=Subject(which_subject, '?', None, None, None), experiment_name='pupil_yes_no', experiment_nr=2, sample_rate_new=50, project_directory=this_project_folder, aliases=aliases)
-            #     pupilAnalysisSession.trial_wise_pupil()
+            if s == 2:
+                pupilPreprocessSession = defs_pupil.pupilPreprocessSession(subject=Subject(which_subject, '?', None, None, None), experiment_name='pupil_yes_no', experiment_nr=2, version=3, sample_rate_new=50, project_directory=this_project_folder)
+                pupilPreprocessSession.import_raw_data(edf_files=edfs, aliases=aliases)
+                pupilPreprocessSession.delete_hdf5()
+                pupilPreprocessSession.import_all_data(aliases)
+                for alias in aliases:
+                    pupilPreprocessSession.process_runs(alias, artifact_rejection='not_strict', create_pupil_BOLD_regressor=False)
+                    pass
+                pupilPreprocessSession.process_across_runs(aliases, create_pupil_BOLD_regressor=False)
+
+                # within subjects stats:
+                pupilAnalysisSession = defs_pupil.pupilAnalyses(subject=Subject(which_subject, '?', None, None, None), experiment_name='pupil_yes_no', experiment_nr=2, sample_rate_new=50, project_directory=this_project_folder, aliases=aliases)
+                pupilAnalysisSession.trial_wise_pupil()
 
             # ----------------------------
             # fMRI:                      -
@@ -106,7 +106,6 @@ for which_subject in subjects:
             # session.rescaleFunctionals(operations = ['sgtf'], filterFreqs={'highpass': 50.0, 'lowpass': -1.0}, funcPostFix = ['B0', 'mcf'], mask_file = None) # 0.01 Hz = 1 / (2.0 [TR] x 50 [samples])
             # session.rename(conditions = ['loc', 'task'], postFix_old = ['B0', 'mcf', 'sgtf'], postFix_new = ['B0', 'mcf', 'sgtf', '0.01'])
             # session.rescaleFunctionals(operations = ['percentsignalchange'], funcPostFix = ['B0', 'mcf', 'sgtf', '0.01'], mask_file = None)
-            # session.retroicorFSL(conditions=['task', 'loc'], postFix=['B0', 'mcf'], threshold=1.5, nr_dummies=8, sample_rate=496, gradient_direction='y', thisFeatFile='/home/shared/Niels_UvA/Retmap_UvA/analysis/feat_retro/retroicor_design.fsf', prepare=True, run=False)
 
             # stimulus timings:
             # -----------------
@@ -117,16 +116,17 @@ for which_subject in subjects:
             # session.createMasksFromFreeSurferLabels(annot=False, annotFile='aparc.a2009s', cortex=True)
             # session.create_dilated_cortical_mask(dilation_sd=0.25, label='cortex')
             # session.create_brain_masks()
-            # session.register_TSE_epi()
-            # session.grab_LC_masks()
             # session.transform_standard_brainmasks(min_nr_voxels=12)
-            # session.transform_choice_areas()
-
+            # session.register_TSE_epi()
+            # session.grab_LC_masks() # --> requires LCs and Ventricles to be drawn.
+            # session.transform_LC_mask_TSE2Func(min_nr_voxels=12)
+            
             # preprocessing first steps continued:
             # ------------------------------------
+            # session.retroicorFSL(conditions=['task', 'loc'], postFix=['B0', 'mcf'], threshold=1.5, nr_dummies=8, sample_rate=496, gradient_direction='y', prepare=True, run=False)
             # session.concatenate_data_runs()
             # session.GLM_nuisance()
-            # session.clean_to_MNI(data_type='mcf_phys', postFix=['mcf', 'phys'])
+            # session.clean_to_MNI()
 
             # MASKS:
             # ------
@@ -454,9 +454,6 @@ for which_subject in subjects:
             # localizer:
             # session.GLM_localizer()
             
-            
-            
-            
             # V123:
             # session.V123_univariate() # selects voxels based on localizer
             # session.V123_multivariate() # selects voxels based on task
@@ -468,15 +465,7 @@ for which_subject in subjects:
             # data_type = 'clean_MNI'
             # session.WHOLEBRAIN_event_related_average(data_type=data_type,)
             # session.WHOLEBRAIN_correlation(data_type=data_type,)
-            # session.WHOLEBRAIN_correlation_choice(data_type=data_type,)
             # session.WHOLEBRAIN_searchlight_decoding(data_type=data_type,)
-            # session.WHOLEBRAIN_searchlight_decoding2(data_type=data_type,)
-            # session.WHOLEBRAIN_correlation_V123(data_type=data_type,)
-            # session.WHOLEBRAIN_correlation_SDT(data_type=data_type,)
-            # session.WHOLEBRAIN_mediation(data_type=data_type,)
-            # session.WHOLEBRAIN_moderated_mediation(data_type=data_type,)
-            # session.WHOLEBRAIN_PPI(data_type=data_type,)
-            # session.WHOLEBRAIN_regress_RT_and_lateralization(data_type=data_type,)
             
         # for testing;
         if __name__ == '__main__':

@@ -17,8 +17,8 @@ import matplotlib.pylab as pl
 
 from IPython import embed as shell
 
-this_raw_folder = '/home/raw_data/Donner_lab/2014/visual_detection/data/'
-this_project_folder = '/home/shared/UvA/Niels_UvA/Visual_UvA/'
+this_raw_folder = '/home/raw_data/UvA/Donner_lab/2017_eLife/1_fMRI_yesno_visual/'
+this_project_folder = '/home/shared/UvA/Niels_UvA/Visual_UvA2/'
 
 analysisFolder = os.path.join(this_project_folder, 'analysis')
 sys.path.append( analysisFolder )
@@ -29,44 +29,33 @@ from Tools.Subjects.Subject import *
 from Tools.Run import *
 from Tools.Projects.Project import *
 
-from sessionAcross import acrossSession
-import PupilYesNoDetection
+from defs_fmri_group import defs_fmri_group
+import defs_pupil
 
 # SUBJECTS:
 # ---------
-subjects = ['AV', 'BL', 'DE', 'DL', 'EP', 'JG', 'JS', 'LH', 'LP', 'MG', 'NS', 'OC', 'TK', 'TN']
+subjects = ['sub-01', 'sub-02', 'sub-03', 'sub-04', 'sub-05', 'sub-06', 'sub-07', 'sub-08', 'sub-09', 'sub-10', 'sub-11', 'sub-12', 'sub-13', 'sub-14']
 nr_sessions = [2,2,2,3,2,2,2,2,2,2,2,2,2,2]
-
-# subjects = ['AV', 'BL', 'DE', 'EP', 'JS', 'LH', 'LP', 'MG', 'NS', 'TN']
-# nr_sessions = [2,2,2,2,2,2,2,2,2,2,]
 
 # PUPIL:
 # ------
-pupilAnalysisSessionAcross = PupilYesNoDetection.pupilAnalysesAcross(subjects=subjects, experiment_name='pupil_yes_no', sample_rate_new=20, project_directory=this_project_folder)
-pupilAnalysisSessionAcross.behavior_choice()
-# pupilAnalysisSessionAcross.behavior_variability()
+# pupilAnalysisSessionAcross = defs_pupil.pupilAnalysesAcross(subjects=subjects, experiment_name='pupil_yes_no', sample_rate_new=20, project_directory=this_project_folder)
+# pupilAnalysisSessionAcross.behavior_choice()
 # pupilAnalysisSessionAcross.behavior_normalized(prepare=False)
 # pupilAnalysisSessionAcross.SDT_correlation(bins=5)
 # pupilAnalysisSessionAcross.rt_distributions()
-# pupilAnalysisSessionAcross.behavior_rt_kde()
-# pupilAnalysisSessionAcross.pupil_bars()
-# pupilAnalysisSessionAcross.pupil_criterion()
 # pupilAnalysisSessionAcross.drift_diffusion()
 # pupilAnalysisSessionAcross.average_pupil_responses()
 # pupilAnalysisSessionAcross.grand_average_pupil_response()
-# pupilAnalysisSessionAcross.autocorrelation()
 # pupilAnalysisSessionAcross.SDT_across_time()
 # pupilAnalysisSessionAcross.correlation_PPRa_BPD()
-# pupilAnalysisSessionAcross.white_noise_sim()
-# pupilAnalysisSessionAcross.mean_slow_drift()
-# pupilAnalysisSessionAcross.binned_baseline_pupil_behavior()
 # pupilAnalysisSessionAcross.GLM_betas()
 
 # fMRI:
 # -----
 for split_by in ['pupil_d',]:
 # for split_by in ['yes',]:
-    fMRI_across = acrossSession(subjects=subjects, nr_sessions=nr_sessions, base_dir=os.path.join(this_project_folder), split_by=split_by)
+    fMRI_across = defs_fmri_group(subjects=subjects, nr_sessions=nr_sessions, base_dir=os.path.join(this_project_folder), split_by=split_by)
     rois = [
         'V1_center',
         'V1_surround',
@@ -126,7 +115,6 @@ for split_by in ['pupil_d',]:
         ]
     
     # fMRI_across.surface_labels_to_vol()
-    
     # fMRI_across.correlation_per_subject(rois=rois, data_type='clean_False')
     # fMRI_across.single_trial_correlation_ITI(data_type='clean_False')
     # fMRI_across.single_trial_correlation(data_type='clean_4th_ventricle')
@@ -224,16 +212,6 @@ for split_by in ['pupil_d',]:
     # fMRI_across.CHOICE_SIGNALS_mediation_analysis()
     # fMRI_across.CHOICE_SIGNALS_to_choice()
     # fMRI_across.CHOICE_SIGNALS_variability()
-
     # fMRI_across.DDM_dataframe()
-    
-    
     # fMRI_across.simulation()
     
-    
-    # OLD:
-    # fMRI_across.combine_wholebrain_correlation_OLD(data_type='clean_MNI', comparisons=['pupil'], type_response='mean')
-    # fMRI_across.combine_pupil_BOLD_correlation()
-    # fMRI_across.GLM_level3()
-    # fMRI_across.GLM_level3_pupil()
-    # fMRI_across.wholebrain_cortex_behaviour(data_type='clean_MNI_smooth', comparisons=comparisons, type_response='snr')

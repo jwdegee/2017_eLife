@@ -64,7 +64,7 @@ class defs_fmri_individuals(Session):
     Template Class for fMRI sessions analysis.
     """
     def __init__(self, ID, date, project, subject, parallelize = True, loggingLevel = logging.DEBUG):
-        super(VisualSession, self).__init__(ID, date, project, subject, parallelize = parallelize, loggingLevel = loggingLevel)
+        super(defs_fmri_individuals, self).__init__(ID, date, project, subject, parallelize = parallelize, loggingLevel = loggingLevel)
         
         self.tr = 2.0
         self.fig_dir = '/home/shared/Niels_UvA/Visual_UvA/figures/'
@@ -471,17 +471,107 @@ class defs_fmri_individuals(Session):
         
     def grab_LC_masks(self):
         
+        mask_folder = '/home/raw_data/UvA/Donnerlab/2017_eLife/masks/'
+        
         for r in [self.runList[i] for i in self.conditionDict['TSE_anat']]:
             
-            mask_in = os.path.join(self.project.base_dir, 'LCs', self.runFile('processed/mri', run=r, postFix=['LC', 'JW']).split('.')[-3].split('/')[-1] + '.nii.gz')
+            mask_in = os.path.join(mask_folder, self.runFile('processed/mri', run=r, postFix=['LC', 'JW']).split('.')[-3].split('/')[-1] + '.nii.gz')
             mask_out = self.runFile('processed/mri', run=r, postFix=['LC', 'JW']) 
             os.system('cp ' + mask_in + ' ' + mask_out)
             
-            mask_in = os.path.join(self.project.base_dir, 'LCs', self.runFile('processed/mri', run=r, postFix=['ventricle']).split('.')[-3].split('/')[-1] + '.nii.gz')
+            mask_in = os.path.join(mask_folder, self.runFile('processed/mri', run=r, postFix=['ventricle']).split('.')[-3].split('/')[-1] + '.nii.gz')
             mask_out = self.runFile('processed/mri', run=r, postFix=['ventricle']) 
             os.system('cp ' + mask_in + ' ' + mask_out)                
     
-    
+    def transform_LC_mask_TSE2Func(self, min_nr_voxels=12):
+        
+        nr_voxels = (NiftiImage(self.runFile(stage = 'processed/mri', run = self.runList[self.conditionDict['TSE_anat'][0]], postFix=['LC', 'JW'])).data > 0).ravel().sum()
+        
+        return nr_voxels
+        
+        # transform LC:
+        ##############
+        inputObject = self.runFile(stage='processed/mri', run=self.runList[self.conditionDict['TSE_anat'][0]], postFix=['LC', 'JW'])
+        mask = NiftiImage(inputObject)
+        mask_data = mask.data
+        mask_data[mask_data == 99] = 1
+        mask.data = mask_data
+        mask.save(inputObject)
+
+        # trilinear:
+        inputObject = self.runFile(stage = 'processed/mri', run = self.runList[self.conditionDict['TSE_anat'][0]], postFix=['LC', 'JW'])
+        referenceFileName = self.runFile(stage = 'processed/mri', run = self.runList[self.conditionDict['task'][0]])
+        transformMatrixFileName = self.runFile(stage = 'processed/mri/reg', base='TSE_to_T2', extension='.mat')
+        outputFileName = self.runFile(stage = 'processed/mri/masks/anat', base='LC', postFix=['JW'])
+        fO = FlirtOperator(inputObject, referenceFileName)
+        fO.configureApply(transformMatrixFileName=transformMatrixFileName, outputFileName=outputFileName, sinc=False)
+        fO.execute()
+
+        # treshold:
+        mask = NiftiImage(outputFileName)
+        mask_data = mask.data
+        threshold = mask_data.ravel()[np.argsort(mask_data.ravel())[-min_nr_voxels]]
+        mask_data[mask_data < threshold] = 0
+        # mask_data[mask_data >= threshold] = 1
+        mask.data = mask_data
+        mask.save(outputFileName)
+
+        # trilinear:
+        inputObject = self.runFile(stage = 'processed/mri', run = self.runList[self.conditionDict['TSE_anat'][0]], postFix=['LC', 'JW'])
+        referenceFileName = self.runFile(stage = 'processed/mri', run = self.runList[self.conditionDict['task'][0]])
+        transformMatrixFileName = self.runFile(stage = 'processed/mri/reg', base='TSE_to_T2', extension='.mat')
+        outputFileName = self.runFile(stage = 'processed/mri/masks/anat', base='LC', postFix=['JW_nn'])
+        fO = FlirtOperator(inputObject, referenceFileName)
+        fO.configureApply(transformMatrixFileName=transformMatrixFileName, outputFileName=outputFileName, sinc=False)
+        fO.execute()
+
+        # treshold:
+        mask = NiftiImage(outputFileName)
+        mask_data = mask.data
+        threshold = mask_data.ravel()[np.argsort(mask_data.ravel())[-2]]
+        mask_data[mask_data < threshold] = 0
+        # mask_data[mask_data >= threshold] = 1
+        mask.data = mask_data
+        mask.save(outputFileName)
+
+        # nearest neighbour:
+        inputObject = self.runFile(stage = 'processed/mri', run = self.runList[self.conditionDict['TSE_anat'][0]], postFix=['LC', 'JW'])
+        referenceFileName = self.runFile(stage = 'processed/mri', run = self.runList[self.conditionDict['task'][0]])
+        transformMatrixFileName = self.runFile(stage = 'processed/mri/reg', base='TSE_to_T2', extension='.mat')
+        outputFileName = self.runFile(stage = 'processed/mri/masks/anat', base='LC', postFix=['JW_nn'])
+        fO = FlirtOperator(inputObject, referenceFileName)
+        fO.configureApply(transformMatrixFileName=transformMatrixFileName, outputFileName=outputFileName, sinc=False, extra_args = ' -interp nearestneighbour')
+        fO.execute()
+
+
+
+        # transform 4th ventricle:
+        ##########################
+
+        inputObject = self.runFile(stage='processed/mri', run=self.runList[self.conditionDict['TSE_anat'][0]], postFix=['ventricle'])
+        mask = NiftiImage(inputObject)
+        mask_data = mask.data
+        mask_data[mask_data == 99] = 1
+        mask.data = mask_data
+        mask.save(inputObject)
+
+        inputObject = self.runFile(stage = 'processed/mri', run = self.runList[self.conditionDict['TSE_anat'][0]], postFix=['ventricle'])
+        referenceFileName = self.runFile(stage = 'processed/mri', run = self.runList[self.conditionDict['task'][0]])
+        transformMatrixFileName = self.runFile(stage = 'processed/mri/reg', base='TSE_to_T2', extension='.mat')
+        outputFileName = self.runFile(stage = 'processed/mri/masks/anat', base='4th_ventricle')
+        fO = FlirtOperator(inputObject, referenceFileName)
+        fO.configureApply(transformMatrixFileName=transformMatrixFileName, outputFileName=outputFileName, sinc=False)
+        fO.execute()
+
+        # treshold:
+        mask = NiftiImage(outputFileName)
+        mask_data = mask.data
+        threshold = 0.5
+        mask_data[mask_data < threshold] = 0
+        # mask_data[mask_data >= threshold] = 1
+        mask.data = mask_data
+        mask.save(outputFileName)
+        
     def transform_standard_brainmasks(self, min_nr_voxels=12):
         
         for m in [
@@ -567,14 +657,14 @@ class defs_fmri_individuals(Session):
         for cond in conditions:
             for r in [self.runList[i] for i in self.conditionDict[cond]]:
                 niftis.append(self.runFile(stage = 'processed/mri', run = r, postFix = postFix))
-                nr_trs.append(NiftiImage(self.runFile(stage = 'processed/mri', run = r, postFix = postFix)).timepoints)
+                nr_trs.append(nib.load(self.runFile(stage = 'processed/mri', run = r, postFix = postFix)).get_shape()[-1])
         session = r.session
 
         # concat fMRI data:
         # -----------------
-        mo = FSLMergeOperator(inputObject = niftis)
-        mo.configure(outputFileName = os.path.join(self.project.base_dir, self.subject.initials, 'files', 'detection_data_psc_{}_{}'.format(self.subject.initials, r.session)), TR=self.tr)
-        mo.execute()
+        # mo = FSLMergeOperator(inputObject = niftis)
+        # mo.configure(outputFileName = os.path.join(self.project.base_dir, self.subject.initials, 'files', 'detection_data_psc_{}_{}'.format(self.subject.initials, r.session)), TR=self.tr)
+        # mo.execute()
 
         # concat retroicor:
         # -----------------
@@ -661,14 +751,14 @@ class defs_fmri_individuals(Session):
         
         res_nii_file = nib.Nifti1Image(residuals, affine=nii_file.get_affine(), header=nii_file.get_header())
         res_nii_file.set_data_dtype(np.float32)
-        nib.save(res_nii_file, os.path.join(self.project.base_dir, self.subject.initials, 'files', 'detection_NEW_data_clean_{}_{}.nii.gz'.format(self.subject.initials, session)))
+        nib.save(res_nii_file, os.path.join(self.project.base_dir, self.subject.initials, 'files', 'detection_data_clean_{}_{}.nii.gz'.format(self.subject.initials, session)))
         
     def clean_to_MNI(self,):
         
         session = [self.runList[i] for i in self.conditionDict['task']][0].session
         
         # transform:
-        inputObject = os.path.join(self.project.base_dir, self.subject.initials, 'files', 'detection_NEW_data_clean_{}_{}.nii.gz'.format(self.subject.initials, session))
+        inputObject = os.path.join(self.project.base_dir, self.subject.initials, 'files', 'detection_data_clean_{}_{}.nii.gz'.format(self.subject.initials, session))
         referenceFileName = self.runFile(stage = 'processed/mri/reg/feat', base = 'standard')
         transformMatrixFileName = self.runFile(stage = 'processed/mri/reg/feat', base = 'example_func2standard', extension='.mat')
         outputFileName = os.path.join(self.project.base_dir, self.subject.initials, 'files', 'detection_data_clean_MNI_{}_{}.nii.gz'.format(self.subject.initials, session))
@@ -856,25 +946,13 @@ class defs_fmri_individuals(Session):
         session = [self.runList[i] for i in self.conditionDict['task']][0].session
         nr_runs = len([self.runList[i] for i in self.conditionDict['task']])
         
-        if bold:
-            # BOLD data:
-            if data_type == 'clean' or data_type == 'clean_ventricle' or data_type == 'clean_midbrain' or data_type == 'clean_LC' or data_type == 'clean_z':
-                BOLD_data_1 = nib.load(os.path.join(self.project.base_dir, self.subject.initials, 'files', 'detection_NEW_data_clean_{}_1.nii.gz'.format(self.subject.initials)))
-                BOLD_data_2 = nib.load(os.path.join(self.project.base_dir, self.subject.initials, 'files', 'detection_NEW_data_clean_{}_2.nii.gz'.format(self.subject.initials)))
-            if (data_type == 'clean_MNI') or (data_type == 'clean_MNI_smooth'):
-                BOLD_data_1 = nib.load(os.path.join(self.project.base_dir, self.subject.initials, 'files', 'detection_data_{}_{}_1.nii.gz'.format(data_type, self.subject.initials)))
-                BOLD_data_2 = nib.load(os.path.join(self.project.base_dir, self.subject.initials, 'files', 'detection_data_{}_{}_2.nii.gz'.format(data_type, self.subject.initials)))
-            if data_type == 'fsl_clean':
-                BOLD_data_1 = nib.load(os.path.join(self.project.base_dir, 'across', 'glm', 'detection_data_clean_{}_1.feat'.format(self.subject.initials, session), 'stats', 'res4d.nii'))
-                BOLD_data_2 = nib.load(os.path.join(self.project.base_dir, 'across', 'glm', 'detection_data_clean_{}_2.feat'.format(self.subject.initials, session), 'stats', 'res4d.nii'))
-            if data_type == 'psc':
-                BOLD_data_1 = nib.load(os.path.join(self.project.base_dir, self.subject.initials, 'files', 'detection_data_psc_{}_1.nii.gz'.format(self.subject.initials)))
-                BOLD_data_2 = nib.load(os.path.join(self.project.base_dir, self.subject.initials, 'files', 'detection_data_psc_{}_2.nii.gz'.format(self.subject.initials)))
-        
+        BOLD_data_1 = nib.load(os.path.join(self.project.base_dir, self.subject.initials, 'files', 'detection_data_{}_{}_1.nii.gz'.format(data_type, self.subject.initials)))
+        BOLD_data_2 = nib.load(os.path.join(self.project.base_dir, self.subject.initials, 'files', 'detection_data_{}_{}_2.nii.gz'.format(data_type, self.subject.initials)))
+                        
         # trs:
         self.trs_1 = np.loadtxt(os.path.join(self.project.base_dir, self.subject.initials, 'files', 'triggers_1.txt'))
         self.trs_2 = np.loadtxt(os.path.join(self.project.base_dir, self.subject.initials, 'files', 'triggers_2.txt'))
-        if self.subject.initials == 'DL':
+        if self.subject.initials == 'sub-04':
             self.trs_3 = np.loadtxt(os.path.join(self.project.base_dir, self.subject.initials, 'files', 'triggers_3.txt'))
         
         # pupil:
@@ -883,16 +961,9 @@ class defs_fmri_individuals(Session):
         self.pupil_data_2['cue_onset'] = self.pupil_data_2['cue_onset'] + (len(self.trs_1) * self.tr)
         
         # concatenate across sessions:
-        if self.subject.initials == 'DL':
+        if self.subject.initials == 'sub-04':
             if bold:
-                if data_type == 'clean' or data_type == 'clean_ventricle' or data_type == 'clean_midbrain' or data_type == 'clean_LC' or data_type == 'clean_z':
-                    BOLD_data_3 = nib.load(os.path.join(self.project.base_dir, self.subject.initials, 'files', 'detection_NEW_data_clean_{}_3.nii.gz'.format(self.subject.initials)))
-                if data_type == 'fsl_clean':
-                    BOLD_data_3 = nib.load(os.path.join(self.project.base_dir, 'across', 'glm', 'detection_data_clean_{}_3.feat'.format(self.subject.initials, session), 'stats', 'res4d.nii'))
-                if (data_type == 'clean_MNI') or (data_type == 'clean_MNI_smooth'):
-                    BOLD_data_3 = nib.load(os.path.join(self.project.base_dir, self.subject.initials, 'files', 'detection_data_{}_{}_3.nii.gz'.format(data_type, self.subject.initials)))
-                if data_type == 'psc':
-                    BOLD_data_3 = nib.load(os.path.join(self.project.base_dir, self.subject.initials, 'files', 'detection_data_psc_{}_3.nii.gz'.format(self.subject.initials)))
+                BOLD_data_3 = nib.load(os.path.join(self.project.base_dir, self.subject.initials, 'files', 'detection_data_{}_{}_3.nii.gz'.format(data_type, self.subject.initials)))
             self.pupil_data_3 = pd.read_csv(os.path.join(self.project.base_dir, self.subject.initials, 'pupil_data_3.csv'))
             self.pupil_data_3['cue_onset'] = self.pupil_data_3['cue_onset'] + ((len(self.trs_1)+len(self.trs_2)) * self.tr)
             self.pupil_data = pd.concat((self.pupil_data_1, self.pupil_data_2, self.pupil_data_3))
@@ -902,7 +973,7 @@ class defs_fmri_individuals(Session):
         if bold:
             self.BOLD_data_1 = BOLD_data_1.get_data()
             self.BOLD_data_2 = BOLD_data_2.get_data()
-            if self.subject.initials == 'DL':
+            if self.subject.initials == 'sub-04':
                 self.BOLD_data_3 = BOLD_data_3.get_data()
                 
     def find_nearest(self,array,value):
@@ -939,7 +1010,7 @@ class defs_fmri_individuals(Session):
                 trs_1 = np.loadtxt(os.path.join(self.project.base_dir, self.subject.initials, 'files', 'triggers_1.txt'))
                 trs_2 = np.loadtxt(os.path.join(self.project.base_dir, self.subject.initials, 'files', 'triggers_2.txt')) + (trs_1.shape[0]*2.0)
                 trs = np.concatenate((trs_1, trs_2))
-                if self.subject.initials == 'DL':
+                if self.subject.initials == 'sub-04':
                     trs_3 = np.loadtxt(os.path.join(self.project.base_dir, self.subject.initials, 'files', 'triggers_3.txt')) + (trs_1.shape[0]*2.0) + (trs_2.shape[0]*2.0)
                     trs = np.concatenate((trs_1, trs_2, trs_3))
                 
@@ -952,13 +1023,13 @@ class defs_fmri_individuals(Session):
                 mask_2 = mask_2[mask_2>0]
                 roi_data_1 = (roi_data_1 * np.atleast_2d(mask_1).T).sum(axis=0) / sum(mask_1)
                 roi_data_2 = (roi_data_2 * np.atleast_2d(mask_2).T).sum(axis=0) / sum(mask_2)
-                if self.subject.initials == 'DL':
+                if self.subject.initials == 'sub-04':
                     mask_3 = np.array(nib.load(os.path.join(self.project.base_dir, self.subject.initials, 'files', 'masks', roi + '_3.nii.gz')).get_data(), dtype=float)
                     roi_data_3 = self.BOLD_data_3[mask_3>0,:]
                     mask_3 = mask_3[mask_3>0]
                     roi_data_3 = (roi_data_3 * np.atleast_2d(mask_3).T).sum(axis=0) / sum(mask_3)
                     
-                if self.subject.initials == 'DL':
+                if self.subject.initials == 'sub-04':
                     roi_data_m = np.concatenate((roi_data_1, roi_data_2, roi_data_3))
                 else:
                     roi_data_m = np.concatenate((roi_data_1, roi_data_2,))
@@ -966,13 +1037,12 @@ class defs_fmri_individuals(Session):
                 print roi_data_m.shape
                 
                 for project_out in [False, '4th_ventricle']:
-                # for project_out in [False]:
                     if project_out:
                         mask_1 = np.array(nib.load(os.path.join(self.project.base_dir, self.subject.initials, 'files', 'masks', '{}_1.nii.gz'.format(project_out))).get_data(), dtype=bool)
                         roi_data_1 = bn.nanmean(self.BOLD_data_1[mask_1,:], axis=0)
                         mask_2 = np.array(nib.load(os.path.join(self.project.base_dir, self.subject.initials, 'files', 'masks', '{}_2.nii.gz'.format(project_out))).get_data(), dtype=bool)
                         roi_data_2 = bn.nanmean(self.BOLD_data_2[mask_2,:], axis=0)
-                        if self.subject.initials == 'DL':
+                        if self.subject.initials == 'sub-04':
                         
                             mask_3 = np.array(nib.load(os.path.join(self.project.base_dir, self.subject.initials, 'files', 'masks', '{}_3.nii.gz'.format(project_out))).get_data(), dtype=bool)
                             roi_data_3 = bn.nanmean(self.BOLD_data_3[mask_3,:], axis=0)
@@ -1340,7 +1410,7 @@ class defs_fmri_individuals(Session):
             trs_2 = np.loadtxt(os.path.join(self.project.base_dir, self.subject.initials, 'files', 'triggers_2.txt')) + (trs_1.shape[0]*2.0)
             trs = np.concatenate((trs_1, trs_2))
                 
-            if self.subject.initials == 'DL':
+            if self.subject.initials == 'sub-04':
                 BOLD_data = np.hstack((self.BOLD_data_1[mask,:], self.BOLD_data_2[mask,:], self.BOLD_data_3[mask,:]))
                 trs_3 = np.loadtxt(os.path.join(self.project.base_dir, self.subject.initials, 'files', 'triggers_3.txt')) + (trs_1.shape[0]*2.0) + (trs_2.shape[0]*2.0)
                 trs = np.concatenate((trs_1, trs_2, trs_3))
@@ -1506,76 +1576,9 @@ class defs_fmri_individuals(Session):
             res_nii_file = nib.Nifti1Image(results, affine=brain_mask.get_affine(), header=brain_mask.get_header())
             res_nii_file.set_data_dtype(np.float32)
             nib.save(res_nii_file, os.path.join(self.project.base_dir, 'across', 'correlation', 'whole_brain_{}_{}_{}_{}_{}.nii.gz'.format('mean', data_type, time_locked, self.subject.initials, 'pupil_d')))
-    
-    def WHOLEBRAIN_correlation_choice(self, data_type='clean_MNI'):
-        
-        session = [self.runList[i] for i in self.conditionDict['task']][0].session
-        nr_runs = len([self.runList[i] for i in self.conditionDict['task']])
-        time_locked = 'stim_locked'
-        
-        self.load_concatenated_data(data_type=data_type, bold=False)
-        omissions = np.array(self.pupil_data.omissions, dtype=bool)
-        self.pupil_data = self.pupil_data[-omissions]
-        
-        brain_mask = nib.load('/home/shared/UvA/Niels_UvA/mni_masks/MNI152_T1_2mm_brain_mask_bin.nii.gz')
-        mask = np.array(brain_mask.get_data(), dtype=bool)
-        
-        scalars_d = np.array(nib.load(os.path.join(self.project.base_dir, 'across', 'event_related_average_wb', 'scalars_{}_{}_{}_d.nii.gz'.format(data_type, time_locked, self.subject.initials))).get_data())[mask,:]
-        
-        # load dataframe:
-        data_frame = pd.read_csv(os.path.join(self.project.base_dir, 'across', 'event_related_average_wb', 'MNI_dataframe_1.csv'))
-        data_frame = data_frame[data_frame.subject == self.subject.initials]
-        
-        # per session:
-        session_ind = np.array(data_frame['session'], dtype=int) == session
-        scalars_d = scalars_d[:,session_ind]
-        rt = np.array(self.pupil_data['rt'])[session_ind]
-        yes = np.array(self.pupil_data['yes'], dtype=bool)[session_ind]
-        no = ~yes
-        present = np.array(self.pupil_data['present'], dtype=bool)[session_ind]
-        absent = ~present
-        
-        # single trial correlation BOLD - stimulus / choice:
-        # --------------------------------------------------
-        
-        logistic = sklearn.linear_model.LogisticRegression(C=1e5, fit_intercept=True)
-        corrs_stim = np.zeros(scalars_d.shape[0])
-        corrs_choice = np.zeros(scalars_d.shape[0])
-        for v in range(scalars_d.shape[0]):
             
-            # BOLD:
-            BOLD = scalars_d[v,:]
-            
-            # stim:
-            logistic.fit(np.atleast_2d(BOLD[yes]).T, np.array(present[yes], dtype=int))
-            r1 = np.exp(logistic.coef_) / (1 + np.exp(logistic.coef_))
-            logistic.fit(np.atleast_2d(BOLD[no]).T, np.array(present[no], dtype=int))
-            r2 = np.exp(logistic.coef_) / (1 + np.exp(logistic.coef_))
-            corrs_stim[v] = (r1+r2)/2.0
-        
-            # choice:
-            logistic.fit(np.atleast_2d(BOLD[present]).T, np.array(yes[present], dtype=int))
-            r1 = np.exp(logistic.coef_) / (1 + np.exp(logistic.coef_))
-            logistic.fit(np.atleast_2d(BOLD[absent]).T, np.array(yes[absent], dtype=int))
-            r2 = np.exp(logistic.coef_) / (1 + np.exp(logistic.coef_))
-            corrs_choice[v] = (r1+r2)/2.0
-            
-        # save:
-        results = np.zeros((mask.shape[0],mask.shape[1],mask.shape[2]))
-        results[mask] = corrs_stim
-        res_nii_file = nib.Nifti1Image(results, affine=brain_mask.get_affine(), header=brain_mask.get_header())
-        res_nii_file.set_data_dtype(np.float32)
-        nib.save(res_nii_file, os.path.join(self.project.base_dir, 'across', 'correlation', 'whole_brain_{}_{}_{}_{}_BOLD_present_s{}.nii.gz'.format('mean', data_type, time_locked, self.subject.initials, session)))
-        
-        results = np.zeros((mask.shape[0],mask.shape[1],mask.shape[2]))
-        results[mask] = corrs_choice
-        res_nii_file = nib.Nifti1Image(results, affine=brain_mask.get_affine(), header=brain_mask.get_header())
-        res_nii_file.set_data_dtype(np.float32)
-        nib.save(res_nii_file, os.path.join(self.project.base_dir, 'across', 'correlation', 'whole_brain_{}_{}_{}_{}_BOLD_choice_s{}.nii.gz'.format('mean', data_type, time_locked, self.subject.initials, session)))
-        
     def WHOLEBRAIN_searchlight_decoding(self, data_type='clean_MNI'):
         
-        from sklearn import svm
         from sklearn.cross_validation import StratifiedKFold
         from sklearn.cross_validation import KFold
         import nilearn.decoding
@@ -1590,7 +1593,7 @@ class defs_fmri_individuals(Session):
         self.pupil_data = self.pupil_data[-np.array(self.pupil_data.omissions, dtype=bool)]
     
         # load dataframe:
-        data_frame = pd.read_csv(os.path.join(self.project.base_dir, 'across', 'event_related_average_wb', 'MNI_dataframe_1.csv'))
+        data_frame = pd.read_csv(os.path.join(self.project.base_dir, 'across', 'event_related_average_wb', 'MNI_dataframe_2.csv'))
         data_frame = data_frame[data_frame.subject == self.subject.initials]
         
         # per session:
@@ -1602,26 +1605,15 @@ class defs_fmri_individuals(Session):
         absent = ~present
         
         # mask:
-        mask_img = nib.load('/home/shared/Niels_UvA/brainstem_masks/epi_box.nii.gz')
+        mask_img = nib.load('/home/shared/UvA/Niels_UvA/mni_masks/2014_fMRI_yesno_epi_box.nii.gz')
         
         # fMRI image:
-        fmri_img = nib.load(os.path.join(self.project.base_dir, 'across', 'event_related_average_wb', 'scalars_{}_{}_{}_RT_d.nii.gz'.format(data_type, time_locked, self.subject.initials)))
+        fmri_img = nib.load(os.path.join(self.project.base_dir, 'across', 'event_related_average_wb', 'scalars_{}_{}_{}_d.nii.gz'.format(data_type, time_locked, self.subject.initials)))
         fmri_img = index_img(fmri_img, session_ind)
         
         # njobs
         n_jobs = 10
         n_folds = 3
-        
-        from nilearn.image import new_img_like, load_img
-        process_mask = mask_img.get_data().astype(np.int)
-        picked_slice = 40
-        process_mask[..., (picked_slice + 1):] = 0
-        process_mask[..., :picked_slice] = 0
-        process_mask[:, 30:, :] = 0
-        process_mask_img = new_img_like(mask_img, process_mask)
-        
-        
-        # shell()
         
         # FOR CHOICE WITH STIMULUS FACTORED OUT:#
         #########################################
@@ -1631,184 +1623,46 @@ class defs_fmri_individuals(Session):
         # cv = KFold(yes[present].size, n_folds=n_folds)
         cv = StratifiedKFold(yes[present], n_folds=n_folds)
         searchlight = nilearn.decoding.SearchLight(mask_img, process_mask_img=mask_img, radius=10, n_jobs=n_jobs, verbose=1, cv=cv)
-        # searchlight = nilearn.decoding.SearchLight(mask_img, process_mask_img=process_mask_img, radius=10, n_jobs=n_jobs, verbose=1, cv=cv, estimator=svm.LinearSVC(class_weight='balanced',), scoring='accuracy')
         searchlight.fit(fmri_img_present, np.array(yes[present], dtype=int))
         res_present = searchlight.scores_
-        a = res_present[np.array(process_mask, dtype=bool)]
         
-        fmri_img_absent = index_img(fmri_img, absent)
+        
+        # for signal absent:
+        fmri_img_absent = index_img(fmri_img, ~present)
         # cv = KFold(yes[~present].size, n_folds=n_folds)
-        cv = StratifiedKFold(yes[absent], n_folds=n_folds)
+        cv = StratifiedKFold(yes[~present], n_folds=n_folds)
         searchlight = nilearn.decoding.SearchLight(mask_img, process_mask_img=mask_img, radius=10, n_jobs=n_jobs, verbose=1, cv=cv)
-        # searchlight = nilearn.decoding.SearchLight(mask_img, process_mask_img=process_mask_img, radius=10, n_jobs=n_jobs, verbose=1, cv=cv, estimator=svm.LinearSVC(class_weight='balanced',), scoring='accuracy')
-        searchlight.fit(fmri_img_absent, np.array(yes[absent], dtype=int))
+        searchlight.fit(fmri_img_absent, np.array(yes[~present], dtype=int))
         res_absent = searchlight.scores_
-        b = res_absent[np.array(process_mask, dtype=bool)]
-        
-        cv = StratifiedKFold(yes, n_folds=n_folds)
-        searchlight = nilearn.decoding.SearchLight(mask_img, process_mask_img=mask_img, radius=10, n_jobs=n_jobs, verbose=1, cv=cv)
-        # searchlight = nilearn.decoding.SearchLight(mask_img, process_mask_img=process_mask_img, radius=10, n_jobs=n_jobs, verbose=1, cv=cv, estimator=svm.LinearSVC(class_weight='balanced',), scoring='precision')
-        searchlight.fit(fmri_img, np.array(yes, dtype=int))
-        res_all = searchlight.scores_
-        c = res_all[np.array(process_mask, dtype=bool)]
-        
-        
-        
-        
-        
-        # # for signal present:
-        # fmri_img_present = index_img(fmri_img, present)
-        # # cv = KFold(yes[present].size, n_folds=n_folds)
-        # cv = StratifiedKFold(yes[present], n_folds=n_folds)
-        # searchlight = nilearn.decoding.SearchLight(mask_img, process_mask_img=mask_img, radius=10, n_jobs=n_jobs, verbose=1, cv=cv, estimator=svm.SVC(kernel='linear', class_weight='balanced',), scoring='precision')
-        # searchlight.fit(fmri_img_present, np.array(yes[present], dtype=int))
-        # res_present = searchlight.scores_
-        #
-        # # for signal absent:
-        # fmri_img_absent = index_img(fmri_img, absent)
-        # # cv = KFold(yes[~present].size, n_folds=n_folds)
-        # cv = StratifiedKFold(yes[~present], n_folds=n_folds)
-        # searchlight = nilearn.decoding.SearchLight(mask_img, process_mask_img=mask_img, radius=10, n_jobs=n_jobs, verbose=1, cv=cv, estimator=svm.SVC(kernel='linear', class_weight='balanced',), scoring='precision')
-        # searchlight.fit(fmri_img_absent, np.array(yes[absent], dtype=int))
-        # res_absent = searchlight.scores_
-        #
-        # # combine:
-        # results = (res_present+res_absent) / 2.0
-        # results = nib.Nifti1Image(results, affine=nib.load('/home/shared/Niels_UvA/brainstem_masks/MNI152_T1_2mm_brain_mask_bin.nii.gz').affine)
-        # nib.save(results, os.path.join(self.project.base_dir, 'across', 'event_related_average_wb', 'searchlight_choice_{}_{}_{}_s{}.nii.gz'.format(data_type, time_locked, self.subject.initials, session)))
         
         # combine:
-        results = res_present.copy()
-        results = nib.Nifti1Image(results, affine=nib.load('/home/shared/Niels_UvA/brainstem_masks/MNI152_T1_2mm_brain_mask_bin.nii.gz').affine)
-        nib.save(results, os.path.join(self.project.base_dir, 'across', 'event_related_average_wb', 'searchlight_choice_{}_{}_{}_s{}_present.nii.gz'.format(data_type, time_locked, self.subject.initials, session)))
-        results = res_absent.copy()
-        results = nib.Nifti1Image(results, affine=nib.load('/home/shared/Niels_UvA/brainstem_masks/MNI152_T1_2mm_brain_mask_bin.nii.gz').affine)
-        nib.save(results, os.path.join(self.project.base_dir, 'across', 'event_related_average_wb', 'searchlight_choice_{}_{}_{}_s{}_absent.nii.gz'.format(data_type, time_locked, self.subject.initials, session)))
         results = (res_present+res_absent) / 2.0
-        results = nib.Nifti1Image(results, affine=nib.load('/home/shared/Niels_UvA/brainstem_masks/MNI152_T1_2mm_brain_mask_bin.nii.gz').affine)
-        nib.save(results, os.path.join(self.project.base_dir, 'across', 'event_related_average_wb', 'searchlight_stimulus_{}_{}_{}_s{}.nii.gz'.format(data_type, time_locked, self.subject.initials, session)))
-        results = res_all.copy()
-        results = nib.Nifti1Image(results, affine=nib.load('/home/shared/Niels_UvA/brainstem_masks/MNI152_T1_2mm_brain_mask_bin.nii.gz').affine)
-        nib.save(results, os.path.join(self.project.base_dir, 'across', 'event_related_average_wb', 'searchlight_choice_{}_{}_{}_s{}_all.nii.gz'.format(data_type, time_locked, self.subject.initials, session)))
+        results = nib.Nifti1Image(results, affine=nib.load('/home/shared/UvA/Niels_UvA/mni_masks/MNI152_T1_2mm_brain_mask_bin.nii.gz').affine)
+        nib.save(results, os.path.join(self.project.base_dir, 'across', 'event_related_average_wb', 'searchlight_choice_{}_{}_{}_s{}.nii.gz'.format(data_type, time_locked, self.subject.initials, session)))
         
-        # # FOR STIMULUS WITH CHOICE FACTORED OUT:#
-        # #########################################
-        #
-        # # for signal present:
-        # fmri_img_yes = index_img(fmri_img, yes)
-        # # cv = KFold(present[yes].size, n_folds=n_folds)
-        # cv = StratifiedKFold(present[yes], n_folds=n_folds)
-        # searchlight = nilearn.decoding.SearchLight(mask_img, process_mask_img=mask_img, radius=2, n_jobs=n_jobs, verbose=1, cv=cv)
-        # searchlight.fit(fmri_img_yes, np.array(present[yes], dtype=int))
-        # res_yes = searchlight.scores_
-        #
-        # # for signal absent:
-        # fmri_img_no = index_img(fmri_img, ~yes)
-        # # cv = KFold(present[~yes].size, n_folds=n_folds)
-        # cv = StratifiedKFold(present[~yes], n_folds=n_folds)
-        # searchlight = nilearn.decoding.SearchLight(mask_img, process_mask_img=mask_img, radius=2, n_jobs=n_jobs, verbose=1, cv=cv)
-        # searchlight.fit(fmri_img_no, np.array(present[~yes], dtype=int))
-        # res_no = searchlight.scores_
-        #
-        # # combine:
-        # results = (res_yes+res_no) / 2.0
-        # results = nib.Nifti1Image(results, affine=nib.load('/home/shared/Niels_UvA/brainstem_masks/MNI152_T1_2mm_brain_mask_bin.nii.gz').affine)
-        # nib.save(results, os.path.join(self.project.base_dir, 'across', 'event_related_average_wb', 'searchlight_stimulus_{}_{}_{}_s{}.nii.gz'.format(data_type, time_locked, self.subject.initials, session)))
-        
-    def WHOLEBRAIN_searchlight_decoding2(self, data_type='clean_MNI'):
-        
-        from sklearn import svm
-        from sklearn.cross_validation import StratifiedKFold
-        from sklearn.cross_validation import KFold
-        import nilearn.decoding
-        from nilearn.image import index_img
-        
-        session = [self.runList[i] for i in self.conditionDict['task']][0].session
-        nr_runs = len([self.runList[i] for i in self.conditionDict['task']])
-        
-        time_locked = 'stim_locked'
-        
-        self.load_concatenated_data(data_type=data_type, bold=False)
-        self.pupil_data = self.pupil_data[-np.array(self.pupil_data.omissions, dtype=bool)]
-    
-        # load dataframe:
-        data_frame = pd.read_csv(os.path.join(self.project.base_dir, 'across', 'event_related_average_wb', 'MNI_dataframe_1.csv'))
-        data_frame = data_frame[data_frame.subject == self.subject.initials]
-        
-        # per session:
-        session_ind = np.array(data_frame['session'], dtype=int) == session
-        rt = np.array(self.pupil_data['rt'])[session_ind]
-        yes = np.array(self.pupil_data['yes'], dtype=int)[session_ind]
-        present = np.array(self.pupil_data['present'], dtype=int)[session_ind]
-        
-        # mask:
-        mask_img = nib.load('/home/shared/UvA/Niels_UvA/mni_masks/2014_fMRI_yesno_epi_box_half.nii.gz')
-        
-        # fMRI image:
-        fmri_img = nib.load(os.path.join(self.project.base_dir, 'across', 'event_related_average_wb', 'scalars_{}_{}_{}_RT_d.nii.gz'.format(data_type, time_locked, self.subject.initials)))
-        fmri_img = index_img(fmri_img, session_ind)
-        
-        # njobs
-        n_jobs = 1
-        n_folds = 3
-        
-        # FOR CHOICE WITH STIMULUS FACTORED OUT:#
+        # FOR STIMULUS WITH CHOICE FACTORED OUT:#
         #########################################
         
         # for signal present:
-        cv = StratifiedKFold(yes, n_folds=n_folds)
-        # searchlight = nilearn.decoding.SearchLight(mask_img, process_mask_img=mask_img, radius=10, n_jobs=n_jobs, verbose=1, cv=cv)
-        searchlight = nilearn.decoding.SearchLight(mask_img, process_mask_img=mask_img, radius=10, n_jobs=n_jobs, verbose=1, cv=cv, estimator=svm.LinearSVC(class_weight='balanced',),) #scoring='accuracy')
-        searchlight.fit(fmri_img, np.array(yes, dtype=int))
-        results = searchlight.scores_
+        fmri_img_yes = index_img(fmri_img, yes)
+        # cv = KFold(present[yes].size, n_folds=n_folds)
+        cv = StratifiedKFold(present[yes], n_folds=n_folds)
+        searchlight = nilearn.decoding.SearchLight(mask_img, process_mask_img=mask_img, radius=10, n_jobs=n_jobs, verbose=1, cv=cv)
+        searchlight.fit(fmri_img_yes, np.array(present[yes], dtype=int))
+        res_yes = searchlight.scores_
+        
+        # for signal absent:
+        fmri_img_no = index_img(fmri_img, ~yes)
+        # cv = KFold(present[~yes].size, n_folds=n_folds)
+        cv = StratifiedKFold(present[~yes], n_folds=n_folds)
+        searchlight = nilearn.decoding.SearchLight(mask_img, process_mask_img=mask_img, radius=10, n_jobs=n_jobs, verbose=1, cv=cv)
+        searchlight.fit(fmri_img_no, np.array(present[~yes], dtype=int))
+        res_no = searchlight.scores_
         
         # combine:
+        results = (res_yes+res_no) / 2.0
         results = nib.Nifti1Image(results, affine=nib.load('/home/shared/UvA/Niels_UvA/mni_masks/MNI152_T1_2mm_brain_mask_bin.nii.gz').affine)
-        nib.save(results, os.path.join(self.project.base_dir, 'across', 'event_related_average_wb', 'searchlight2_choice_{}_{}_{}_s{}_choice.nii.gz'.format(data_type, time_locked, self.subject.initials, session)))
-    
-
-
-    
-    def create_post_preprocessing_dir(self,):
-        
-        session = [self.runList[i] for i in self.conditionDict['task']][0].session
-        subj_id = self.subject.initials
-        
-        if subj_id == 'AV':
-            sub = 'sub-01'
-        elif subj_id == 'BL':
-            sub = 'sub-02'
-        elif subj_id == 'DE':
-            sub = 'sub-03'
-        elif subj_id == 'DL':
-            sub = 'sub-04'
-        elif subj_id == 'EP':
-            sub = 'sub-05'
-        elif subj_id == 'JG':
-            sub = 'sub-06'
-        elif subj_id == 'JS':
-            sub = 'sub-07'
-        elif subj_id == 'LH':
-            sub = 'sub-08'
-        elif subj_id == 'LP':
-            sub = 'sub-09'
-        elif subj_id == 'MG':
-            sub = 'sub-10'
-        elif subj_id == 'NS':
-            sub = 'sub-11'
-        elif subj_id == 'OC':
-            sub = 'sub-12'
-        elif subj_id == 'TK':
-            sub = 'sub-13'
-        elif subj_id == 'TN':
-            sub = 'sub-14'
-        
-        os.system('mkdir {}'.format(os.path.join(self.project.base_dir, 'post_preprocess',)))
-        os.system('mkdir {}'.format(os.path.join(self.project.base_dir, 'post_preprocess', sub)))
-        os.system('cp /home/shared/UvA/Niels_UvA/Visual_UvA/data/{}/files/detection_data_clean_{}_{}.nii.gz /home/shared/UvA/Niels_UvA/Visual_UvA/data/post_preprocess/{}/{}-ses-0{}-task.nii.gz'.format(subj_id, subj_id, session, sub, sub, session))
-        os.system('cp /home/shared/UvA/Niels_UvA/Visual_UvA/data/{}/files/detection_data_clean_MNI_{}_{}.nii.gz /home/shared/UvA/Niels_UvA/Visual_UvA/data/post_preprocess/{}/{}-ses-0{}-task_mni.nii.gz'.format(subj_id, subj_id, session, sub, sub, session))
-        if session == 2:
-            os.system('cp -r /home/shared/UvA/Niels_UvA/Visual_UvA/data/{}/files/masks/ /home/shared/UvA/Niels_UvA/Visual_UvA/data/post_preprocess/{}/masks/'.format(subj_id, sub,))
+        nib.save(results, os.path.join(self.project.base_dir, 'across', 'event_related_average_wb', 'searchlight_stimulus_{}_{}_{}_s{}.nii.gz'.format(data_type, time_locked, self.subject.initials, session)))
         
     def copy_freesurfer_labels(self):
         
@@ -1877,97 +1731,6 @@ class defs_fmri_individuals(Session):
         fO.configureApply( transformMatrixFileName = '/home/shared/Niels_UvA/brainstem_masks/raw/SPM_anatomy_transform/trans_standard_to_standard_SPM_inv.mat', outputFileName = '/home/shared/Niels_UvA/brainstem_masks/raw/SPM_anatomy_transform/Bforebrain_123_TRANS.nii.gz', sinc=False) 
         fO.execute()
         
-    def transform_LC_mask_TSE2Func(self, min_nr_voxels=12):
-        
-        nr_voxels =  (NiftiImage(self.runFile(stage = 'processed/mri', run = self.runList[self.conditionDict['TSE_anat'][0]], postFix=['LC', 'JW'])).data > 0).ravel().sum()
-        
-        return nr_voxels
-        
-        # # transform LC:
-        # ##############
-        # inputObject = self.runFile(stage='processed/mri', run=self.runList[self.conditionDict['TSE_anat'][0]], postFix=['LC', 'JW'])
-        # mask = NiftiImage(inputObject)
-        # mask_data = mask.data
-        # mask_data[mask_data == 99] = 1
-        # mask.data = mask_data
-        # mask.save(inputObject)
-        #
-        # # trilinear:
-        # inputObject = self.runFile(stage = 'processed/mri', run = self.runList[self.conditionDict['TSE_anat'][0]], postFix=['LC', 'JW'])
-        # referenceFileName = self.runFile(stage = 'processed/mri', run = self.runList[self.conditionDict['task'][0]])
-        # transformMatrixFileName = self.runFile(stage = 'processed/mri/reg', base='TSE_to_T2', extension='.mat')
-        # outputFileName = self.runFile(stage = 'processed/mri/masks/anat', base='LC', postFix=['JW'])
-        # fO = FlirtOperator(inputObject, referenceFileName)
-        # fO.configureApply(transformMatrixFileName=transformMatrixFileName, outputFileName=outputFileName, sinc=False)
-        # fO.execute()
-        #
-        # # treshold:
-        # mask = NiftiImage(outputFileName)
-        # mask_data = mask.data
-        # threshold = mask_data.ravel()[np.argsort(mask_data.ravel())[-min_nr_voxels]]
-        # mask_data[mask_data < threshold] = 0
-        # # mask_data[mask_data >= threshold] = 1
-        # mask.data = mask_data
-        # mask.save(outputFileName)
-        #
-        # # trilinear:
-        # inputObject = self.runFile(stage = 'processed/mri', run = self.runList[self.conditionDict['TSE_anat'][0]], postFix=['LC', 'JW'])
-        # referenceFileName = self.runFile(stage = 'processed/mri', run = self.runList[self.conditionDict['task'][0]])
-        # transformMatrixFileName = self.runFile(stage = 'processed/mri/reg', base='TSE_to_T2', extension='.mat')
-        # outputFileName = self.runFile(stage = 'processed/mri/masks/anat', base='LC', postFix=['JW_nn'])
-        # fO = FlirtOperator(inputObject, referenceFileName)
-        # fO.configureApply(transformMatrixFileName=transformMatrixFileName, outputFileName=outputFileName, sinc=False)
-        # fO.execute()
-        #
-        # # treshold:
-        # mask = NiftiImage(outputFileName)
-        # mask_data = mask.data
-        # threshold = mask_data.ravel()[np.argsort(mask_data.ravel())[-2]]
-        # mask_data[mask_data < threshold] = 0
-        # # mask_data[mask_data >= threshold] = 1
-        # mask.data = mask_data
-        # mask.save(outputFileName)
-        #
-        # # nearest neighbour:
-        # inputObject = self.runFile(stage = 'processed/mri', run = self.runList[self.conditionDict['TSE_anat'][0]], postFix=['LC', 'JW'])
-        # referenceFileName = self.runFile(stage = 'processed/mri', run = self.runList[self.conditionDict['task'][0]])
-        # transformMatrixFileName = self.runFile(stage = 'processed/mri/reg', base='TSE_to_T2', extension='.mat')
-        # outputFileName = self.runFile(stage = 'processed/mri/masks/anat', base='LC', postFix=['JW_nn'])
-        # fO = FlirtOperator(inputObject, referenceFileName)
-        # fO.configureApply(transformMatrixFileName=transformMatrixFileName, outputFileName=outputFileName, sinc=False, extra_args = ' -interp nearestneighbour')
-        # fO.execute()
-        #
-        #
-        #
-        # # transform 4th ventricle:
-        # ##########################
-        #
-        # inputObject = self.runFile(stage='processed/mri', run=self.runList[self.conditionDict['TSE_anat'][0]], postFix=['ventricle'])
-        # mask = NiftiImage(inputObject)
-        # mask_data = mask.data
-        # mask_data[mask_data == 99] = 1
-        # mask.data = mask_data
-        # mask.save(inputObject)
-        #
-        # inputObject = self.runFile(stage = 'processed/mri', run = self.runList[self.conditionDict['TSE_anat'][0]], postFix=['ventricle'])
-        # referenceFileName = self.runFile(stage = 'processed/mri', run = self.runList[self.conditionDict['task'][0]])
-        # transformMatrixFileName = self.runFile(stage = 'processed/mri/reg', base='TSE_to_T2', extension='.mat')
-        # outputFileName = self.runFile(stage = 'processed/mri/masks/anat', base='4th_ventricle')
-        # fO = FlirtOperator(inputObject, referenceFileName)
-        # fO.configureApply(transformMatrixFileName=transformMatrixFileName, outputFileName=outputFileName, sinc=False)
-        # fO.execute()
-        #
-        # # treshold:
-        # mask = NiftiImage(outputFileName)
-        # mask_data = mask.data
-        # threshold = 0.5
-        # mask_data[mask_data < threshold] = 0
-        # # mask_data[mask_data >= threshold] = 1
-        # mask.data = mask_data
-        # mask.save(outputFileName)
-    
-
-            
     def correct_FS_subcortical_masks(self):
         LC = NiftiImage(os.path.join(self.stageFolder(stage = 'processed/mri/masks/anat'), 'LC_standard_1.nii.gz'))
         
