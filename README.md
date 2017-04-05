@@ -1,8 +1,13 @@
 # 2017_eLife
 This is the analysis code from de Gee JW, Colizoli O, Kloosterman NA, Knapen T, Nieuwenhuis S &amp; Donner TH. 2017. Dynamic modulation of decision biases by brainstem arousal systems. eLife.
 
+I will soon update the pupil and fMRI preprocessing part using a more modern pipeline. 
+
+For any questions or comments please email: jwdegee[AT]gmail.com.
+
 ## prerequisites
-https://github.com/VU-Cog-Sci/analysis_tools.git
+https://github.com/VU-Cog-Sci/analysis_tools/tree/jws_branch fMRI preprocessing.
+https://github.com/tknapen/hedfpy/tree/jws_branch for the pupil preprocessing.
 
 ## license
 

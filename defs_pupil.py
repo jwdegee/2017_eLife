@@ -666,41 +666,8 @@ class pupilAnalyses(object):
         event_3[:,0] = cue_times_epoched
         event_3[:,1] = choice_times_epoched-cue_times_epoched
         
-        ind_params = False
-        if ind_params:
-            if self.subject.initials == 'AV':
-                params = {'ID': 'tk', 'R': 0.5, 'tmax': 0.93, 'w': 10.1}
-            if self.subject.initials == 'BL':
-                params = {'ID': 'bl', 'R': 0.12493082998181665, 'tmax': 1.3, 'w': 12.0}
-            if self.subject.initials == 'DE':
-                params = {'ID': 'de', 'R': 0.30253841965962169, 'tmax': 0.54210526315789476, 'w': 4.8421052631578947}
-            if self.subject.initials == 'DL':
-                params = {'ID': 'dl', 'R': 0.50441537379877599, 'tmax': 0.75263157894736843, 'w': 4.0}
-            if self.subject.initials == 'EP':
-                params = {'ID': 'ep', 'R': 0.12725375961498106, 'tmax': 0.66842105263157892, 'w': 6.5263157894736841}
-            if self.subject.initials == 'JG':
-                params = {'ID': 'jw', 'R': 0.39353728468683857, 'tmax': 1.0894736842105264, 'w': 4.4210526315789469}
-            if self.subject.initials == 'JS':
-                params = {'ID': 'js', 'R': 0.4266433024004806, 'tmax': 0.83684210526315783, 'w': 4.0}
-            if self.subject.initials == 'LH':
-                params = {'ID': 'lh', 'R': 0.56086514440224444, 'tmax': 1.3, 'w': 7.3684210526315788}
-            if self.subject.initials == 'LP':
-                params = {'ID': 'lp', 'R': 0.21058816320730264, 'tmax': 1.1736842105263157, 'w': 11.578947368421051}
-            if self.subject.initials == 'MG':
-                params = {'ID': 'mg', 'R': 0.23887929555225784, 'tmax': 0.62631578947368416, 'w': 5.2631578947368425}
-            if self.subject.initials == 'NS':
-                params = {'ID': 'ns', 'R': 0.18308429749626953, 'tmax': 0.62631578947368416, 'w': 4.0}
-            if self.subject.initials == 'OC':
-                params = {'ID': 'oc', 'R': 0.16988708334682065, 'tmax': 1.131578947368421, 'w': 12.0}
-            if self.subject.initials == 'TK':
-                params = {'ID': 'tk', 'R': 0.48245753595522584, 'tmax': 1.3, 'w': 4.8421052631578947}
-            if self.subject.initials == 'TN':
-                params = {'ID': 'tk', 'R': 0.5, 'tmax': 0.93, 'w': 10.1}
-            w = params['w']
-            tmax = params['tmax']
-        else:
-            w = 10.1
-            tmax = 0.93
+        w = 10.1
+        tmax = 0.93
         
         # shell()
         
