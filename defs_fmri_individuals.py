@@ -1185,7 +1185,7 @@ class defs_fmri_individuals(Session):
                                 index = self.find_nearest(trs,e)
                                 voxel_arrays[i,:len(nifti_m_m[v,index-2:index+7]),v] = nifti_m_m[v,index-2:index+7]
 
-                        step_lim = [-4,14]
+                        step_lim = [-4,12]
                         step = pd.Series(np.linspace(step_lim[0], step_lim[1], len_kernel), name='time from cue (s)')
                         time_of_interest_b = [-2,2]
                         time_of_interest_b_ind = np.array(step >= time_of_interest_b[0]) * np.array(step <= time_of_interest_b[1])
@@ -1230,7 +1230,7 @@ class defs_fmri_individuals(Session):
                     for i, e in enumerate(np.array(pupil_data.cue_onset[-np.array(pupil_data.omissions, dtype=bool)])):
                         index = self.find_nearest(trs,e)
                         voxel_arrays[i,:len(BOLD_data[v,index-2:index+7]),v] = BOLD_data[v,index-2:index+7]
-                step_lim = [-4,14]
+                step_lim = [-4,12]
                 step = pd.Series(np.linspace(step_lim[0], step_lim[1], len_kernel), name='time from cue (s)')
                 time_of_interest_b = [-2,2]
                 time_of_interest_b_ind = np.array(step >= time_of_interest_b[0]) * np.array(step <= time_of_interest_b[1])
@@ -1273,7 +1273,7 @@ class defs_fmri_individuals(Session):
                             for i, e in enumerate(np.array(pupil_data.cue_onset[-np.array(pupil_data.omissions, dtype=bool)])):
                                 index = self.find_nearest(trs,e)
                                 voxel_arrays[i,:len(BOLD_data_m[v,index-2:index+7]),v] = BOLD_data_m[v,index-2:index+7]
-                        step_lim = [-4,14]
+                        step_lim = [-4,12]
                         step = pd.Series(np.linspace(step_lim[0], step_lim[1], len_kernel), name='time from cue (s)')
                         time_of_interest_b = [-2,2]
                         time_of_interest_b_ind = np.array(step >= time_of_interest_b[0]) * np.array(step <= time_of_interest_b[1])
@@ -1306,7 +1306,7 @@ class defs_fmri_individuals(Session):
                         for i, e in enumerate(np.array(pupil_data.cue_onset[-np.array(pupil_data.omissions, dtype=bool)])):
                             index = self.find_nearest(trs,e)
                             voxel_arrays[i,:len(BOLD_data_m[v,index-2:index+7]),v] = BOLD_data_m[v,index-2:index+7]
-                    step_lim = [-4,14]
+                    step_lim = [-4,12]
                     step = pd.Series(np.linspace(step_lim[0], step_lim[1], len_kernel), name='time from cue (s)')
                     time_of_interest_b = [-2,2]
                     time_of_interest_b_ind = np.array(step >= time_of_interest_b[0]) * np.array(step <= time_of_interest_b[1])
@@ -1440,7 +1440,7 @@ class defs_fmri_individuals(Session):
                 
                 
                 time_of_interest_b = [-2,2]
-                step_lim = [-4,14]
+                step_lim = [-4,12]
                 step = pd.Series(np.linspace(step_lim[0], step_lim[1], len_kernel), name='time from cue (s)')
                 time_of_interest_b_ind = np.array(step >= time_of_interest_b[0]) * np.array(step <= time_of_interest_b[1])
                 
@@ -1464,11 +1464,11 @@ class defs_fmri_individuals(Session):
                 # params:
                 # if type_response == 'mean':
                 if time_locked == 'stim_locked':
-                    step_lim = [-4,14]
+                    step_lim = [-4,12]
                     time_of_interest = [2,12]
                 if time_locked == 'resp_locked':
-                    step_lim = [-6,12]
-                    time_of_interest = [2,12]
+                    step_lim = [-6,10]
+                    time_of_interest = [2,10]
                 # elif type_response == 'std':
                 #     if time_locked == 'stim_locked':
                 #         step_lim = [-4,14]
@@ -1545,8 +1545,8 @@ class defs_fmri_individuals(Session):
                 step_range = [-4,12]
                 time_of_interest = [2,12]
             if time_locked == 'resp_locked':
-                step_range = [-6,12]
-                time_of_interest = [2,12]
+                step_range = [-6,10]
+                time_of_interest = [2,10]
             time_of_interest_b = [-2,2]
             ventricle = np.load(os.path.join(self.project.base_dir, 'across', 'event_related_average', 'full_array_{}_{}_{}_{}.npy'.format('clean_False', '4th_ventricle', 'stim_locked', self.subject.initials)))[-omissions,:]
             kernel_length = ventricle.shape[1]

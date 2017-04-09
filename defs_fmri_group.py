@@ -1039,8 +1039,8 @@ class defs_fmri_group(object):
             step_range = [-4,12]
             time_of_interest = [2,12]
         if time_locked == 'resp_locked':
-            step_range = [-6,12]
-            time_of_interest = [2,12]
+            step_range = [-6,10]
+            time_of_interest = [2,10]
         time_of_interest_b = [-2,2]
         
         # dataframe:
@@ -1359,9 +1359,9 @@ class defs_fmri_group(object):
                     xlim = [-2,12]
                     time_of_interest = [2,12]
                 if time_locked == 'resp_locked':
-                    step_lim = [-6,12]
-                    xlim = [-4,12]
-                    time_of_interest = [2,12]
+                    step_lim = [-6,10]
+                    xlim = [-4,10]
+                    time_of_interest = [2,10]
                 time_of_interest_b = [-2,2]
             
             # load data for plotting:
@@ -1555,9 +1555,9 @@ class defs_fmri_group(object):
                     xlim = [-2,12]
                     time_of_interest = [2,12]
                 if time_locked == 'resp_locked':
-                    step_lim = [-6,12]
-                    xlim = [-4,12]
-                    time_of_interest = [2,12]
+                    step_lim = [-6,10]
+                    xlim = [-4,10]
+                    time_of_interest = [2,10]
                 time_of_interest_b = [-2,2]
             
             # load data for plotting:
@@ -1668,7 +1668,7 @@ class defs_fmri_group(object):
             # sem_1 = sp.stats.sem(kernels_condition1-meannn, axis=0)
             # sem_2 = sp.stats.sem(kernels_condition1-meannn, axis=0)
             sem_1 = sp.stats.sem(kernels_condition1, axis=0)
-            sem_2 = sp.stats.sem(kernels_condition1, axis=0)
+            sem_2 = sp.stats.sem(kernels_condition2, axis=0)
             
             # plot:
             # -----
